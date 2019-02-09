@@ -7,18 +7,21 @@ public class UserInput{
 	private int height = 0, width = 0;
 	
 	public void makeDimensions(int height, int width){
-		this.dimensions = new String[height][width];
+		this.dimensions = new String[height][];
+		for(int i = 0; i < height; i++) {
+			dimensions[i] = new String[width];
+		}
 	}
 
 	public String[][] arrayMod(){
 		System.out.println("Please input the height and dimensions respectively (No letters, or decimals)");
 		while(true){
 			boolean isGood = true;
-
+			
 
 			this.height = keyB.nextInt();
 			this.width = keyB.nextInt();
-
+			makeDimensions(height, width);
 			// checks if its an int
 
 			if(isGood){
@@ -26,8 +29,9 @@ public class UserInput{
 				System.out.println(this.height + " " + this.width);
 
 				for(int i = 0; i  < height; i++){
+
 					for(int j = 0; j < width;j++){
-						this.dimensions[i][j] = Integer.toString(1);
+						this.dimensions[i][j] = "A";
 					}
 				}
 
@@ -39,7 +43,7 @@ public class UserInput{
 			}
 			
 		}
-		makeDimensions(height, width);
+		
 		return this.dimensions;
 	}
 	public String[][] getArray(){
