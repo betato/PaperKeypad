@@ -11,35 +11,37 @@ public class UserInput{
 	}
 
 	public String[][] arrayMod(){
+		boolean flag = true;
+		String
 		System.out.println("Please input the height and dimensions respectively (No letters, or decimals)");
-		while(true){
+		while(flag == true){
 			boolean isGood = true;
 
 
 			this.height = keyB.nextInt();
 			this.width = keyB.nextInt();
 
+			makeDimensions(height, width);
+
 			// checks if its an int
-
+			String[][] current = new String[this.height][this.width];
 			if(isGood){
-
-				System.out.println(this.height + " " + this.width);
 
 				for(int i = 0; i  < height; i++){
 					for(int j = 0; j < width;j++){
-						this.dimensions[i][j] = Integer.toString(1);
+						current[i][j] = Integer.toString(j);
 					}
 				}
-
+				System.out.println();
+				this.dimensions = current;
 				break;
 			}
 			else{
 				System.out.println("Please try again");
 				
 			}
-			
+			flag = false;
 		}
-		makeDimensions(height, width);
 		return this.dimensions;
 	}
 	public String[][] getArray(){
