@@ -13,6 +13,13 @@ import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
+
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
 
@@ -61,7 +68,17 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        return inputFrame.rgba();
+        Mat gray = inputFrame.gray();
+        MatOfPoint paperOutline = findPaper(gray);
+        Mat colourImage = inputFrame.rgba();
+
+        if (paperOutline != null) {
+            ArrayList<MatOfPoint> outlineArray = new ArrayList<>();
+            outlineArray.add(paperOutline);
+            Imgproc.drawContours(colourImage, outlineArray, 0, new Scalar(255, 0, 0), 5);
+        }
+
+        return colourImage;
     }
 
     @Override
@@ -86,5 +103,45 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         if (cameraBridgeViewBase != null) {
             cameraBridgeViewBase.disableView();
         }
+    }
+
+    private MatOfPoint findPaper(Mat input) {
+        Mat canny = new Mat();
+        Imgproc.blur(input, canny, new Size(3, 3));
+        Imgproc.Canny(canny, canny, 60, 180, 3);
+        Imgproc.dilate(canny, canny, new Mat());
+
+        ArrayList<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(canny, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        ArrayList<MatOfPoint> outlines = new ArrayList<>();
+        int minContourPixels = (int)canny.size().area() / 8;
+
+        for(MatOfPoint contour : contours) {
+            MatOfPoint outline = approxContour(contour);
+            if(outline.size().height == 4 && Imgproc.contourArea(outline) > minContourPixels && Imgproc.isContourConvex(outline)){
+                outlines.add(outline);
+            }
+        }
+
+        if (outlines.isEmpty()) {
+            return null;
+        } else {
+            MatOfPoint largestOutline = outlines.get(0);
+            for(int i = 1; i < outlines.size(); i++) {
+                if (Imgproc.contourArea(outlines.get(i)) > Imgproc.contourArea(largestOutline)) {
+                    largestOutline = outlines.get(i);
+                }
+            }
+            return largestOutline;
+        }
+    }
+
+    private MatOfPoint approxContour(MatOfPoint contour) {
+        MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
+        MatOfPoint2f approx = new MatOfPoint2f();
+        Imgproc.approxPolyDP(contour2f, approx, Imgproc.arcLength(contour2f,true)*0.06, true);
+        return new MatOfPoint(approx.toArray());
     }
 }
