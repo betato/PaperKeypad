@@ -15,21 +15,13 @@ public class UserInput{
 
 	public String[][] arrayMod(){
 		boolean flag = true;
-		String
 		System.out.println("Please input the height and dimensions respectively (No letters, or decimals)");
 		while(flag == true){
 			boolean isGood = true;
-			
-
 			this.height = keyB.nextInt();
 			this.width = keyB.nextInt();
-<<<<<<< HEAD
 
 			makeDimensions(height, width);
-=======
-			makeDimensions(height, width);
-			// checks if its an int
->>>>>>> 64a96b2f767f9f5ed2c33567656d7387f0e2d64d
 
 			// checks if its an int
 			String[][] current = new String[this.height][this.width];
@@ -38,11 +30,7 @@ public class UserInput{
 				for(int i = 0; i  < height; i++){
 
 					for(int j = 0; j < width;j++){
-<<<<<<< HEAD
 						current[i][j] = Integer.toString(j);
-=======
-						this.dimensions[i][j] = "A";
->>>>>>> 64a96b2f767f9f5ed2c33567656d7387f0e2d64d
 					}
 				}
 				System.out.println();
@@ -55,10 +43,6 @@ public class UserInput{
 			}
 			flag = false;
 		}
-<<<<<<< HEAD
-=======
-		
->>>>>>> 64a96b2f767f9f5ed2c33567656d7387f0e2d64d
 		return this.dimensions;
 	}
 	public String[][] getArray(){
