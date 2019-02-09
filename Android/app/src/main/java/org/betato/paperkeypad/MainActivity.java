@@ -2,10 +2,12 @@ package org.betato.paperkeypad;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.os.Debug;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.SurfaceView;
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
@@ -15,6 +17,7 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
@@ -73,9 +76,10 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         Mat colourImage = inputFrame.rgba();
 
         if (paperOutline != null) {
-            ArrayList<MatOfPoint> outlineArray = new ArrayList<>();
+            /*ArrayList<MatOfPoint> outlineArray = new ArrayList<>();
             outlineArray.add(paperOutline);
-            Imgproc.drawContours(colourImage, outlineArray, 0, new Scalar(255, 0, 0), 5);
+            Imgproc.drawContours(colourImage, outlineArray, 0, new Scalar(255, 0, 0), 5);*/
+            transform(colourImage, paperOutline);
         }
 
         return colourImage;
@@ -143,5 +147,20 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         MatOfPoint2f approx = new MatOfPoint2f();
         Imgproc.approxPolyDP(contour2f, approx, Imgproc.arcLength(contour2f,true)*0.06, true);
         return new MatOfPoint(approx.toArray());
+    }
+
+    private void transform(Mat image, MatOfPoint transform) {
+        Log.d("transform", transform.toArray()[0].toString());
+        Log.d("transform", transform.toArray()[1].toString());
+        Log.d("transform", transform.toArray()[2].toString());
+        Log.d("transform", transform.toArray()[3].toString());
+
+        Mat srcTransform = new MatOfPoint2f(transform.toArray());
+        Mat destTransform = new MatOfPoint2f(
+                new Point(0,0), new Point(image.width() - 1,0),
+                new Point(image.width() - 1,image.height() - 1), new Point(0,image.height() - 1));
+
+        Mat finalTransform = Imgproc.getPerspectiveTransform(srcTransform, destTransform);
+        Imgproc.warpPerspective(image, image, finalTransform, image.size());
     }
 }
