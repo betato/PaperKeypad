@@ -4,9 +4,52 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
+import java.util.ArrayList;
+
 public class ImageTransform {
+
+    private MatOfPoint paperOutline;
+
+    public MatOfPoint getPaperOutline() {
+        return paperOutline;
+    }
+
+    public MatOfPoint findPaper(Mat input) {
+        Mat canny = new Mat();
+        Imgproc.blur(input, canny, new Size(3, 3));
+        Imgproc.Canny(canny, canny, 60, 180, 3);
+        Imgproc.dilate(canny, canny, new Mat());
+
+        ArrayList<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(canny, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        ArrayList<MatOfPoint> outlines = new ArrayList<>();
+        int minContourPixels = (int)canny.size().area() / 8;
+
+        for(MatOfPoint contour : contours) {
+            MatOfPoint outline = approxContour(contour);
+            if(outline.size().height == 4 && Imgproc.contourArea(outline) > minContourPixels && Imgproc.isContourConvex(outline)){
+                outlines.add(outline);
+            }
+        }
+
+        if (outlines.isEmpty()) {
+            return null;
+        } else {
+            paperOutline = outlines.get(0);
+            for(int i = 1; i < outlines.size(); i++) {
+                if (Imgproc.contourArea(outlines.get(i)) > Imgproc.contourArea(paperOutline)) {
+                    paperOutline = outlines.get(i);
+                }
+            }
+            return paperOutline;
+        }
+    }
+
     private MatOfPoint approxContour(MatOfPoint contour) {
         MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
         MatOfPoint2f approx = new MatOfPoint2f();
@@ -14,8 +57,8 @@ public class ImageTransform {
         return new MatOfPoint(approx.toArray());
     }
 
-    private void transform(Mat image, MatOfPoint transform) {
-        Point[] sortedTransform = transform.toArray();
+    public void transformToOutline(Mat image) {
+        Point[] sortedTransform = paperOutline.toArray();
 
         int first = 0;
         for (int i = 0; i < sortedTransform.length; i++) {

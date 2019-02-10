@@ -3,10 +3,8 @@ package org.betato.paperkeypad;
 import android.app.Activity;
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.os.Debug;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -18,8 +16,6 @@ import android.view.SurfaceView;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
@@ -27,8 +23,6 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
-import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
@@ -39,13 +33,16 @@ import java.util.List;
 
 public class MainActivity extends Activity implements CameraBridgeViewBase.CvCameraViewListener2 , OnTouchListener  {
 
+    private ImageTransform imageTransform = new ImageTransform();
+    private boolean isDetectingPaper = true;
+
     private static final String  TAG              = "OCVSample::Activity";
 
     private boolean              mIsColorSelected = false;
     private Mat                  mRgba;
     private Scalar               mBlobColorRgba;
     private Scalar               mBlobColorHsv;
-    private ColourBlobDetector    mDetector;
+    private ColourBlobDetector   mDetector;
     private Mat                  mSpectrum;
     private Size                 SPECTRUM_SIZE;
     private Scalar               CONTOUR_COLOR;
@@ -68,7 +65,8 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
                 default:
                 {
                     super.onManagerConnected(status);
-                } break;
+                }
+                break;
             }
         }
     };
@@ -136,40 +134,35 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        /* LIAM'S CODE FOR IMAGE TRANSFORMS
-        // This method cannot be merged because they take the same type of inputs and return the same type of outputs,
-        // but the outputs are different vars
-        //      -> maybe choose a case for when the transform is complete? ie. add extra flag var parameter?
-        // -Su
-        */
-        /*
-        Mat gray = inputFrame.gray();
-        MatOfPoint paperOutline = findPaper(gray);
-        Mat colourImage = inputFrame.rgba();
 
-        if (paperOutline != null) {
-            transform(colourImage, paperOutline);
+        if (isDetectingPaper) {
+            MatOfPoint paperOutline = imageTransform.findPaper(inputFrame.gray());
+            Mat colourImage = inputFrame.rgba();
+
+            if (paperOutline != null) {
+                ArrayList<MatOfPoint> outlineArray = new ArrayList<>();
+                outlineArray.add(paperOutline);
+                Imgproc.drawContours(colourImage, outlineArray, 0, new Scalar(255, 0, 0), 5);
+            }
+            return colourImage;
+
+        } else {
+            mRgba = inputFrame.rgba();
+
+            if (mIsColorSelected) {
+                mDetector.process(mRgba);
+                List<MatOfPoint> contours = mDetector.getContours();
+                Log.e(TAG, "Contours count: " + contours.size());
+                Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
+
+                Mat colorLabel = mRgba.submat(4, 68, 4, 68);
+                colorLabel.setTo(mBlobColorRgba);
+
+                Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
+                mSpectrum.copyTo(spectrumLabel);
+            }
+            return mRgba;
         }
-
-        return colourImage;
-        */
-        mRgba = inputFrame.rgba();
-
-        if (mIsColorSelected) {
-            mDetector.process(mRgba);
-            List<MatOfPoint> contours = mDetector.getContours();
-            Log.e(TAG, "Contours count: " + contours.size());
-            Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
-
-            Mat colorLabel = mRgba.submat(4, 68, 4, 68);
-            colorLabel.setTo(mBlobColorRgba);
-
-            Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
-            mSpectrum.copyTo(spectrumLabel);
-        }
-
-        return mRgba;
-
     }
 
     @Override
@@ -251,63 +244,6 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         touchedRegionHsv.release();
 
         return false; // don't need subsequent touch events
-    }
-
-    //---
-
-    private MatOfPoint findPaper(Mat input) {
-        Mat canny = new Mat();
-        Imgproc.blur(input, canny, new Size(3, 3));
-        Imgproc.Canny(canny, canny, 60, 180, 3);
-        Imgproc.dilate(canny, canny, new Mat());
-
-        ArrayList<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(canny, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        ArrayList<MatOfPoint> outlines = new ArrayList<>();
-        int minContourPixels = (int)canny.size().area() / 8;
-
-        for(MatOfPoint contour : contours) {
-            MatOfPoint outline = approxContour(contour);
-            if(outline.size().height == 4 && Imgproc.contourArea(outline) > minContourPixels && Imgproc.isContourConvex(outline)){
-                outlines.add(outline);
-            }
-        }
-
-        if (outlines.isEmpty()) {
-            return null;
-        } else {
-            MatOfPoint largestOutline = outlines.get(0);
-            for(int i = 1; i < outlines.size(); i++) {
-                if (Imgproc.contourArea(outlines.get(i)) > Imgproc.contourArea(largestOutline)) {
-                    largestOutline = outlines.get(i);
-                }
-            }
-            return largestOutline;
-        }
-    }
-
-    private MatOfPoint approxContour(MatOfPoint contour) {
-        MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
-        MatOfPoint2f approx = new MatOfPoint2f();
-        Imgproc.approxPolyDP(contour2f, approx, Imgproc.arcLength(contour2f,true)*0.06, true);
-        return new MatOfPoint(approx.toArray());
-    }
-
-    private void transform(Mat image, MatOfPoint transform) {
-        Log.d("transform", transform.toArray()[0].toString());
-        Log.d("transform", transform.toArray()[1].toString());
-        Log.d("transform", transform.toArray()[2].toString());
-        Log.d("transform", transform.toArray()[3].toString());
-
-        Mat srcTransform = new MatOfPoint2f(transform.toArray());
-        Mat destTransform = new MatOfPoint2f(
-                new Point(0,0), new Point(image.width() - 1,0),
-                new Point(image.width() - 1,image.height() - 1), new Point(0,image.height() - 1));
-
-        Mat finalTransform = Imgproc.getPerspectiveTransform(srcTransform, destTransform);
-        Imgproc.warpPerspective(image, image, finalTransform, image.size());
     }
 
     private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
