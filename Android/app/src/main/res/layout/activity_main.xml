@@ -1,18 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    <!-- LinearLayout chosen over <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    as per mentor suggestion-->
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
     <org.opencv.android.JavaCameraView
+        android:id="@+id/cameraView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        <!--android:id="@+id/cameraView" -->
-        android:id="@+id/color_blob_detection_activity_surface_view" />
-</LinearLayout>
+        android:layout_height="match_parent" />
+
+</android.support.constraint.ConstraintLayout>
 <!--</android.support.constraint.ConstraintLayout>-->

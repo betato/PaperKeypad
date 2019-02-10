@@ -1,5 +1,5 @@
 package org.betato.paperkeypad;
 
-public interface ClickListner {
+public interface ClickListener {
     void onClick();
 }

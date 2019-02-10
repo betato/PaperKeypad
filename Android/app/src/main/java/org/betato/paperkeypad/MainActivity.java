@@ -86,7 +86,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
 
         setContentView(R.layout.activity_main);
 
-        mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.color_blob_detection_activity_surface_view);
+        mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.cameraView);
         mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
         mOpenCvCameraView.setCvCameraViewListener(this);
 
@@ -98,7 +98,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
 
         // renamed bc XML changed, as per mentor suggestion -SC
         //cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.cameraView);
-        cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.color_blob_detection_activity_surface_view);
+        cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.cameraView);
         cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         cameraBridgeViewBase.setCvCameraViewListener(this);
 

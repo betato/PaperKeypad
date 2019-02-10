@@ -8,14 +8,14 @@ import android.hardware.SensorManager;
 
 public class ClickDetector implements SensorEventListener {
     private SensorManager sensorManager;
-    private ClickListner clickListner;
+    private ClickListener clickListener;
     private double[] x = new double[100];
     private int repeatDelay;
     private boolean firstRun = true;
     int index;
 
-    public ClickDetector(ClickListner clickListner, Context context) {
-        this.clickListner = clickListner;
+    public ClickDetector(ClickListener clickListener, Context context) {
+        this.clickListener = clickListener;
         sensorManager = (SensorManager) context.getSystemService(context.SENSOR_SERVICE);
         sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
     }
@@ -49,7 +49,7 @@ public class ClickDetector implements SensorEventListener {
 
             if (d > 0.1) {
                 if (repeatDelay <= 0) {
-                    clickListner.onClick();
+                    clickListener.onClick();
                 }
                 if (d < 0.2) {
                     repeatDelay = 3;
