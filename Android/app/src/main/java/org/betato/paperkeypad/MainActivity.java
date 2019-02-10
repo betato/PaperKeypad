@@ -16,7 +16,6 @@ import android.view.SurfaceView;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.JavaCameraView;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
@@ -31,9 +30,10 @@ import org.opencv.imgproc.Imgproc;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends Activity implements CameraBridgeViewBase.CvCameraViewListener2 , OnTouchListener  {
+public class MainActivity extends Activity implements CameraBridgeViewBase.CvCameraViewListener2, OnTouchListener, ClickListener  {
 
     private ImageTransform imageTransform = new ImageTransform();
+    private ClickDetector clickDetector;
     private boolean isDetectingPaper = true;
 
     private static final String  TAG              = "OCVSample::Activity";
@@ -47,58 +47,26 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     private Size                 SPECTRUM_SIZE;
     private Scalar               CONTOUR_COLOR;
 
-    private CameraBridgeViewBase mOpenCvCameraView;
-
-    CameraBridgeViewBase cameraBridgeViewBase;
-    BaseLoaderCallback baseLoaderCallback;
-
-    private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
-        @Override
-        public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS:
-                {
-                    Log.i(TAG, "OpenCV loaded successfully");
-                    mOpenCvCameraView.enableView();
-                    mOpenCvCameraView.setOnTouchListener(MainActivity.this);
-                } break;
-                default:
-                {
-                    super.onManagerConnected(status);
-                }
-                break;
-            }
-        }
-    };
-
-    public MainActivity() {
-        Log.i(TAG, "Instantiated new " + this.getClass());
-    }
+    private CameraBridgeViewBase cameraBridgeViewBase;
+    private BaseLoaderCallback baseLoaderCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         setContentView(R.layout.activity_main);
-
-        mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.cameraView);
-        mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
-        mOpenCvCameraView.setCvCameraViewListener(this);
-
-        //--
+        clickDetector = new ClickDetector(this, this);
 
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, 1);
         }
 
-        // renamed bc XML changed, as per mentor suggestion -SC
-        //cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.cameraView);
-        cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.cameraView);
+        cameraBridgeViewBase = findViewById(R.id.cameraView);
         cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         cameraBridgeViewBase.setCvCameraViewListener(this);
+        cameraBridgeViewBase.setOnTouchListener(this);
 
         // Camera listener callback
         baseLoaderCallback = new BaseLoaderCallback(this) {
@@ -152,7 +120,6 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
             if (mIsColorSelected) {
                 mDetector.process(mRgba);
                 List<MatOfPoint> contours = mDetector.getContours();
-                Log.e(TAG, "Contours count: " + contours.size());
                 Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
 
                 Mat colorLabel = mRgba.submat(4, 68, 4, 68);
@@ -181,10 +148,10 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         }
         else if (!OpenCVLoader.initDebug()) {
             Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, baseLoaderCallback);
         } else {
             Log.d(TAG, "OpenCV library found inside package. Using it!");
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+            baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
     }
 
@@ -197,18 +164,25 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     }
 
     public boolean onTouch(View v, MotionEvent event) {
+        if (isDetectingPaper) {
+            isDetectingPaper = false;
+        } else {
+            updateBlobRegion(event);
+        }
+        return false; // don't need subsequent touch events
+    }
+
+    private void updateBlobRegion(MotionEvent event) {
         int cols = mRgba.cols();
         int rows = mRgba.rows();
 
-        int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
-        int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
+        int xOffset = (cameraBridgeViewBase.getWidth() - cols) / 2;
+        int yOffset = (cameraBridgeViewBase.getHeight() - rows) / 2;
 
         int x = (int)event.getX() - xOffset;
         int y = (int)event.getY() - yOffset;
 
-        Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
-
-        if ((x < 0) || (y < 0) || (x > cols) || (y > rows)) return false;
+        if ((x < 0) || (y < 0) || (x > cols) || (y > rows)) return;
 
         Rect touchedRect = new Rect();
 
@@ -226,24 +200,17 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         // Calculate average color of touched region
         mBlobColorHsv = Core.sumElems(touchedRegionHsv);
         int pointCount = touchedRect.width*touchedRect.height;
-        for (int i = 0; i < mBlobColorHsv.val.length; i++)
+        for (int i = 0; i < mBlobColorHsv.val.length; i++) {
             mBlobColorHsv.val[i] /= pointCount;
+        }
 
         mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
-
-        Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", " + mBlobColorRgba.val[1] +
-                ", " + mBlobColorRgba.val[2] + ", " + mBlobColorRgba.val[3] + ")");
-
         mDetector.setHsvColor(mBlobColorHsv);
-
         Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
-
         mIsColorSelected = true;
 
         touchedRegionRgba.release();
         touchedRegionHsv.release();
-
-        return false; // don't need subsequent touch events
     }
 
     private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
@@ -252,5 +219,10 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         Imgproc.cvtColor(pointMatHsv, pointMatRgba, Imgproc.COLOR_HSV2RGB_FULL, 4);
 
         return new Scalar(pointMatRgba.get(0, 0));
+    }
+
+    @Override
+    public void onClick() {
+
     }
 }
